@@ -1,7 +1,8 @@
 #!/bin/bash 
 ###
 ## bashscript to build custom kernel for ubilinux that works on ubuntu
-###
+### AUTHOR: Vinay Malkani
+## Copyright 2016 Mayfield Robotics
 KERNEL_VERSION=4.4.13
 MINOR_VERSION=1
 BASE_HOST=http://ubilinux.org
@@ -18,14 +19,15 @@ KPKG_PACKAGE=${KPKG_PACKAGE_URL##*/}
 wget -N $BASE_HOST/$BASE_URL/$KERNEL_FILE
 wget -N $BASE_HOST/$BASE_URL/$DSC_FILE
 wget -N $BASE_HOST/$BASE_URL/$PATCH_FILE 
-wget -N $KPG_PACKAGE
+wget -N "${KPKG_PACKAGE_URL}"
 
-apt-get -y update && apt-get -y upgrade
-apt-get -y build-dep linux-image-$(uname -r)
-dpkg -i KPKG_PACKAGE
+
+sudo apt-get -y update && sudo apt-get -y upgrade
+sudo apt-get -y build-dep linux-image-$(uname -r)
+sudo dpkg -i KPKG_PACKAGE
 
 
 dpkg-source ${DSC_FILE}
 cp ${CONFIG_FILE} linux-ubilinux-${KERNEL_VERSION}/.config
 cd linux-ubilinux-${KERNEL_VERSION}
-fakeroot make-kpkg -j 2 --initrd --append-to-version=mayfield kernel-image kernel-headers
+fakeroot make-kpkg -j 2 --initrd --append-to-version="-mayfield" kernel-image kernel-headers
