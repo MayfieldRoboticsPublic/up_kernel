@@ -24,10 +24,10 @@ wget -N "${KPKG_PACKAGE_URL}"
 
 sudo apt-get -y update && sudo apt-get -y upgrade
 sudo apt-get -y build-dep linux-image-$(uname -r)
-sudo dpkg -i KPKG_PACKAGE
+sudo dpkg -i $KPKG_PACKAGE
 
 
-dpkg-source ${DSC_FILE}
+dpkg-source -x ${DSC_FILE}
 cp ${CONFIG_FILE} linux-ubilinux-${KERNEL_VERSION}/.config
 cd linux-ubilinux-${KERNEL_VERSION}
 fakeroot make-kpkg -j 2 --initrd --append-to-version="-mayfield" kernel-image kernel-headers
