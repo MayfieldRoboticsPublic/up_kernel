@@ -1,0 +1,76 @@
+diff -r drivers/tty/serial/8250/8250_core.c ../../linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_core.c
+111,115d110
+< static int total_irq_count;
+< extern unsigned char last_status;
+< extern unsigned int last_iir;
+< extern unsigned int last_msr;
+< 
+145c140
+< 				"serial8250: too much work for irq%d, last iir: 0x%08x, last_status: 0x%02x, last_msr: 0x%02x\n", irq, last_iir, (unsigned int)last_status, last_msr);
+---
+> 				"serial8250: too much work for irq%d\n", irq);
+diff -r drivers/tty/serial/8250/8250_dw.c ../../linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_dw.c
+10c10,11
+<  * (at your option) any later version.  *
+---
+>  * (at your option) any later version.
+>  *
+76,77d76
+< unsigned int last_msr;
+< 
+84d82
+<         last_msr = (unsigned int)value;
+195,196d192
+< unsigned int last_iir;
+< 
+201d196
+<     last_iir = iir;
+diff -r drivers/tty/serial/8250/8250_port.c ../../linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_port.c
+1549d1548
+< unsigned char last_status;
+1556,1557d1554
+<     int handled = 0;
+<     int ier = 0;
+1559d1555
+<     /* This is no interrupt OR the busy interrupt BLECK */
+1561,1562c1557
+< 		return handled;
+< 
+---
+> 		return 0;
+1569,1572d1563
+<     last_status = status;
+< 
+<     if((iir & UART_IIR_ID) == UART_IIR_RX_TIMEOUT)
+<         status |= UART_LSR_DR;
+1574,1575c1565
+< 	if ((status & (UART_LSR_DR | UART_LSR_BI)) ||
+<         (iir & 0x3f == UART_IIR_RX_TIMEOUT && up->dma)) {
+---
+> 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+1581d1570
+<         handled = 1;
+1584,1591d1572
+<     if (iir == 0) {
+<         ier = serial_port_in(port, UART_IER);
+< 		printk_ratelimited(KERN_ERR
+<                            "Spurious modem interrupt, ier: 0x%02x\n",
+<                            ier);
+<         /* Attempt to squelch */
+< 		serial_port_out(port, UART_IER, ier & ~UART_IER_MSI);
+<     }
+1593c1574
+< 	    (status & UART_LSR_THRE)) {
+---
+> 	    (status & UART_LSR_THRE))
+1595,1596d1575
+<         handled = 1;
+<     }
+1599,1603c1578
+<     if (handled == 0) {
+< 		printk_ratelimited(KERN_ERR
+<                            "Spurious interrupt, iir: 0x%08x status: 0x%08x last_status: 0x%08x\n", iir,status,last_status);
+<     }
+< 	return handled;
+---
+> 	return 1;
