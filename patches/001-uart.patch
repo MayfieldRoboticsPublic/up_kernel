@@ -1,0 +1,134 @@
+Index: linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_core.c
+===================================================================
+--- linux-ubilinux-4.4.13.orig/drivers/tty/serial/8250/8250_core.c	2016-06-07 18:14:51.000000000 -0700
++++ linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_core.c	2017-04-13 18:25:49.114378643 -0700
+@@ -108,6 +108,10 @@
+  * This means we need to loop through all ports. checking that they
+  * don't have an interrupt pending.
+  */
++extern unsigned char last_status;
++extern unsigned int last_iir;
++extern unsigned int last_msr;
++
+ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
+ {
+ 	struct irq_info *i = dev_id;
+@@ -137,7 +141,11 @@
+ 		if (l == i->head && pass_counter++ > PASS_LIMIT) {
+ 			/* If we hit this, we're dead. */
+ 			printk_ratelimited(KERN_ERR
+-				"serial8250: too much work for irq%d\n", irq);
++				"serial8250: too much work for irq%d, "
++				"last iir: 0x%08x, last_status: 0x%02x, "
++				"last_msr: 0x%02x\n",
++				irq, last_iir,
++				(unsigned int)last_status, last_msr);
+ 			break;
+ 		}
+ 	} while (l != end);
+Index: linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_dw.c
+===================================================================
+--- linux-ubilinux-4.4.13.orig/drivers/tty/serial/8250/8250_dw.c	2017-03-08 12:08:06.565142666 -0800
++++ linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_dw.c	2017-04-13 16:39:16.511521446 -0700
+@@ -74,10 +74,14 @@
+ #define BYT_PRV_CLK_N_VAL_SHIFT		16
+ #define BYT_PRV_CLK_UPDATE		(1 << 31)
+ 
++unsigned int last_msr;
++
+ static inline int dw8250_modify_msr(struct uart_port *p, int offset, int value)
+ {
+ 	struct dw8250_data *d = p->private_data;
+ 
++	last_msr = (unsigned int)value;
++
+ 	/* Override any modem control signals if needed */
+ 	if (offset == UART_MSR) {
+ 		value |= d->msr_mask_on;
+@@ -187,11 +191,15 @@
+ 	return dw8250_modify_msr(p, offset, value);
+ }
+ 
++unsigned int last_iir;
++
+ static int dw8250_handle_irq(struct uart_port *p)
+ {
+ 	struct dw8250_data *d = p->private_data;
+ 	unsigned int iir = p->serial_in(p, UART_IIR);
+ 
++	last_iir = iir;
++
+ 	if (serial8250_handle_irq(p, iir)) {
+ 		return 1;
+ 	} else if ((iir & UART_IIR_BUSY) == UART_IIR_BUSY) {
+Index: linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_port.c
+===================================================================
+--- linux-ubilinux-4.4.13.orig/drivers/tty/serial/8250/8250_port.c	2016-06-07 18:14:51.000000000 -0700
++++ linux-ubilinux-4.4.13/drivers/tty/serial/8250/8250_port.c	2017-04-13 17:05:14.901611206 -0700
+@@ -1546,15 +1546,20 @@
+ /*
+  * This handles the interrupt from one port.
+  */
++unsigned char last_status;
++
+ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
+ {
+ 	unsigned char status;
+ 	unsigned long flags;
+ 	struct uart_8250_port *up = up_to_u8250p(port);
+ 	int dma_err = 0;
++	int handled = 0;
++	int ier = 0;
+ 
++	/* This is no interrupt OR the busy interrupt BLECK */
+ 	if (iir & UART_IIR_NO_INT)
+-		return 0;
++		return handled;
+ 
+ 	spin_lock_irqsave(&port->lock, flags);
+ 
+@@ -1562,20 +1567,42 @@
+ 
+ 	DEBUG_INTR("status = %x...", status);
+ 
++	last_status = status;
++
++	if((iir & UART_IIR_ID) == UART_IIR_RX_TIMEOUT)
++		status |= UART_LSR_DR;
++
+ 	if (status & (UART_LSR_DR | UART_LSR_BI)) {
+ 		if (up->dma)
+ 			dma_err = up->dma->rx_dma(up, iir);
+ 
+ 		if (!up->dma || dma_err)
+ 			status = serial8250_rx_chars(up, status);
++		handled = 1;
+ 	}
+ 	serial8250_modem_status(up);
++	if (iir == 0) {
++		ier = serial_port_in(port, UART_IER);
++		printk_ratelimited(KERN_ERR
++				"Spurious modem interrupt, ier: 0x%02x\n",
++				ier);
++		/* Attempt to squelch */
++		serial_port_out(port, UART_IER, ier & ~UART_IER_MSI);
++	}
+ 	if ((!up->dma || (up->dma && up->dma->tx_err)) &&
+-	    (status & UART_LSR_THRE))
++	    (status & UART_LSR_THRE)) {
+ 		serial8250_tx_chars(up);
++		handled = 1;
++	}
+ 
+ 	spin_unlock_irqrestore(&port->lock, flags);
+-	return 1;
++	if (handled == 0) {
++		printk_ratelimited(KERN_ERR
++				"Spurious interrupt, iir: 0x%08x "
++				"status: 0x%08x last_status: 0x%08x\n",
++				iir, status, last_status);
++	}
++	return handled;
+ }
+ EXPORT_SYMBOL_GPL(serial8250_handle_irq);
+ 
