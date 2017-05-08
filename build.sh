@@ -25,10 +25,10 @@ mkdir -p work
 pushd work
 
 # pull files
-wget -N $BASE_HOST/$BASE_URL/$KERNEL_FILE
-wget -N $BASE_HOST/$BASE_URL/$DSC_FILE
-wget -N $BASE_HOST/$BASE_URL/$PATCH_FILE
-wget -N "${KPKG_PACKAGE_URL}"
+curl -LO $BASE_HOST/$BASE_URL/$KERNEL_FILE
+curl -LO $BASE_HOST/$BASE_URL/$DSC_FILE
+curl -LO $BASE_HOST/$BASE_URL/$PATCH_FILE
+curl -LO "${KPKG_PACKAGE_URL}"
 
 # is the upgrade really necessary?
 sudo apt-get -y update && sudo apt-get -y upgrade
