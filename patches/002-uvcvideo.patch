@@ -154,15 +154,6 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_video.c
  			    struct uvc_streaming_control *probe)
  {
  	return uvc_set_video_ctrl(stream, probe, 0);
-@@ -999,7 +999,8 @@
- 	 * NULL.
- 	 */
- 	if (buf == NULL) {
-+		printk("Buffer is NULL\n");
- 		stream->last_fid = fid;
- 		return -ENODATA;
- 	}
-
 Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvcvideo.h
 ===================================================================
 --- linux-ubilinux-4.4.13.orig/drivers/media/usb/uvc/uvcvideo.h	2017-04-13 18:33:59.585411511 -0700
