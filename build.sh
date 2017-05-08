@@ -3,6 +3,9 @@
 ## bashscript to build custom kernel for ubilinux that works on ubuntu
 ### AUTHOR: Vinay Malkani
 ## Copyright 2016 Mayfield Robotics
+
+set -eu
+
 KERNEL_VERSION=4.4.13
 MINOR_VERSION=1
 BASE_HOST=http://ubilinux.org
