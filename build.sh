@@ -32,7 +32,7 @@ wget -N "${KPKG_PACKAGE_URL}"
 
 # is the upgrade really necessary?
 sudo apt-get -y update && sudo apt-get -y upgrade
-sudo apt-get -y build-dep linux-image-$(uname -r)
+sudo apt-get -y build-dep linux-image-"$(uname -r)"
 sudo dpkg -i ${KPKG_PACKAGE}
 
 
