@@ -10,7 +10,9 @@ COPY . .
 RUN apt-get update -qq \
   && apt-get install -yq --no-install-recommends \
     ca-certificates \
-    curl
+    curl \
+    fakeroot \
+    libfile-fcntllock-perl
 
 RUN ./build.sh
 
