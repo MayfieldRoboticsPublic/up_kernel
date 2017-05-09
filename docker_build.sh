@@ -21,7 +21,3 @@ rm -f ${LOCAL_ARTIFACTS}/*.deb
 docker create --name ${DOCKER_CONTAINER} ${DOCKER_IMAGE}
 docker cp "${DOCKER_CONTAINER}:${DOCKER_ARTIFACTS}" "./"
 docker stop ${DOCKER_CONTAINER} && docker rm ${DOCKER_CONTAINER}
-
-# Inspect the Debian packages
-dpkg-deb --info ${LOCAL_ARTIFACTS}/*.deb
-dpkg-deb --contents ${LOCAL_ARTIFACTS}/*.deb
