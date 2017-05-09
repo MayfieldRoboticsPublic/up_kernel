@@ -5,15 +5,15 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_ctrl.c
 @@ -1973,12 +1973,16 @@
  	list_for_each_entry(entity, &chain->entities, chain) {
  		unsigned int i;
- 
+
 -		if (UVC_ENTITY_TYPE(entity) != UVC_VC_EXTENSION_UNIT ||
 -		    !uvc_entity_match_guid(entity, mapping->entity))
 +		if (!uvc_entity_match_guid(entity, mapping->entity))
  			continue;
- 
+
  		for (i = 0; i < entity->ncontrols; ++i) {
  			ctrl = &entity->controls[i];
-+			if (ctrl->initialized && 
++			if (ctrl->initialized &&
 +			    ctrl->info.selector == mapping->selector) {
 +				found = 1;
 +				break;
@@ -28,7 +28,7 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_driver.c
 @@ -42,6 +42,11 @@
   * Video formats
   */
- 
+
 +/* definition for MUX format */
 +#ifndef V4L2_PIX_FMT_MUX
 +#define V4L2_PIX_FMT_MUX    v4l2_fourcc('M', 'U', 'X', ' ') /* MUX stream */
@@ -52,11 +52,11 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_driver.c
 +		.fcc		= V4L2_PIX_FMT_MUX,
 +	},
  };
- 
+
  /* ------------------------------------------------------------------------
 @@ -478,6 +493,33 @@
  		break;
- 
+
  	case UVC_VS_FORMAT_MPEG2TS:
 +		n = dev->uvc_version >= 0x0110 ? 23 : 7;
 +		if (buflen < n) {
@@ -90,7 +90,7 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_driver.c
  	default:
 @@ -754,6 +796,14 @@
  			break;
- 
+
  		case UVC_VS_FORMAT_MPEG2TS:
 +			/* MPEG2TS format has no frame descriptor. We will create a
 +			 * dummy frame descriptor with a dummy frame interval range.
@@ -116,9 +116,9 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_v4l2.c
 --- linux-ubilinux-4.4.13.orig/drivers/media/usb/uvc/uvc_v4l2.c	2017-04-13 18:33:59.585411511 -0700
 +++ linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_v4l2.c	2017-04-13 18:34:37.608096172 -0700
 @@ -381,11 +381,6 @@
- 
+
  	mutex_lock(&stream->mutex);
- 
+
 -	if (uvc_queue_streaming(&stream->queue)) {
 -		mutex_unlock(&stream->mutex);
 -		return -EBUSY;
@@ -129,7 +129,7 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_v4l2.c
  		uvc_try_frame_interval(stream->cur_frame, interval);
 @@ -398,6 +393,13 @@
  	}
- 
+
  	stream->ctrl = probe;
 +
 +	ret = uvc_commit_video(stream, &stream->ctrl);
@@ -139,7 +139,7 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_v4l2.c
 +	}
 +
  	mutex_unlock(&stream->mutex);
- 
+
  	/* Return the actual frame period. */
 Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_video.c
 ===================================================================
@@ -148,57 +148,12 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvc_video.c
 @@ -359,7 +359,7 @@
  	return ret;
  }
- 
+
 -static int uvc_commit_video(struct uvc_streaming *stream,
 +int uvc_commit_video(struct uvc_streaming *stream,
  			    struct uvc_streaming_control *probe)
  {
  	return uvc_set_video_ctrl(stream, probe, 0);
-@@ -999,14 +999,14 @@
- 	 * NULL.
- 	 */
- 	if (buf == NULL) {
-+		printk("Buffer is NULL\n");
- 		stream->last_fid = fid;
- 		return -ENODATA;
- 	}
- 
- 	/* Mark the buffer as bad if the error bit is set. */
- 	if (data[1] & UVC_STREAM_ERR) {
--		uvc_trace(UVC_TRACE_FRAME, "Marking buffer as bad (error bit "
--			  "set).\n");
-+		printk("Marking buffer as bad (error bit set).\n");
- 		buf->error = 1;
- 	}
- 
-@@ -1022,8 +1022,7 @@
- 		struct timespec ts;
- 
- 		if (fid == stream->last_fid) {
--			uvc_trace(UVC_TRACE_FRAME, "Dropping payload (out of "
--				"sync).\n");
-+			printk("Dropping payload (out of sync).\n");
- 			if ((stream->dev->quirks & UVC_QUIRK_STREAM_NO_FID) &&
- 			    (data[1] & UVC_STREAM_EOF))
- 				stream->last_fid ^= UVC_STREAM_FID;
-@@ -1087,7 +1086,7 @@
- 
- 	/* Complete the current frame if the buffer size was exceeded. */
- 	if (len > maxlen) {
--		uvc_trace(UVC_TRACE_FRAME, "Frame complete (overflow).\n");
-+		printk("Frame complete (overflow).\n");
- 		buf->state = UVC_BUF_STATE_READY;
- 	}
- }
-@@ -1099,7 +1098,7 @@
- 	if (data[1] & UVC_STREAM_EOF && buf->bytesused != 0) {
- 		uvc_trace(UVC_TRACE_FRAME, "Frame complete (EOF found).\n");
- 		if (data[0] == len)
--			uvc_trace(UVC_TRACE_FRAME, "EOF in empty payload.\n");
-+			printk("EOF in empty payload.\n");
- 		buf->state = UVC_BUF_STATE_READY;
- 		if (stream->dev->quirks & UVC_QUIRK_STREAM_NO_FID)
- 			stream->last_fid ^= UVC_STREAM_FID;
 Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvcvideo.h
 ===================================================================
 --- linux-ubilinux-4.4.13.orig/drivers/media/usb/uvc/uvcvideo.h	2017-04-13 18:33:59.585411511 -0700
@@ -213,7 +168,7 @@ Index: linux-ubilinux-4.4.13/drivers/media/usb/uvc/uvcvideo.h
 +#define UVC_GUID_FORMAT_MUX \
 +	{ 'M',  'U',  'X',  0x00, 0x00, 0x00, 0x10, 0x00, \
 +	 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71}
- 
+
  #define UVC_GUID_FORMAT_H264 \
  	{ 'H',  '2',  '6',  '4', 0x00, 0x00, 0x10, 0x00, \
 @@ -683,6 +689,8 @@

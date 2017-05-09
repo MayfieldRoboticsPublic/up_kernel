@@ -1,8 +1,12 @@
-#upboard linux kernel ubuntu 14.04
-this script will download and complile kernel 4.4.13 with upboard patches for ubuntu 14.04
+# UP board Linux kernel Ubuntu 14.04
 
-#Installation
+This script will download and compile kernel 4.4.13 with
+upboard patches for Ubuntu 14.04.
+
+# Installation
+
+
+```bash
 bash build.sh
-
 dpkg -i *.deb
-
+```
